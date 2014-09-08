@@ -1,13 +1,15 @@
 
+#Pkg.add("NLopt")
+#Pkg.update()
+
+
 using Base.Test
+using NLopt
 
 include("BrickModel.jl")
 
-
-include("C:\\Users\\john\\.julia\\NLopt\\src\\NLopt.jl")
+#include("C:\\Users\\john\\.julia\\NLopt\\src\\NLopt.jl")
 #"C:\Users\john\.julia\NLopt\\src"
-
-#using BrickModel
 
 numStates = 3;
 dt = 0.01;
@@ -63,7 +65,6 @@ BrickModel.fromVector!(stateTraj, v)
 #if (true) #false) #
 
 println("testing out NLopt!!")
-#using NLopt
 
 numberOfFunctionEvaluations = 0
 
@@ -93,11 +94,10 @@ function myfunc(x::Vector, grad::Vector)
   val
 end
 
-function myconstraint(result::Vector, x::Vector, grad::Vector)
-  println("started constraint")
+function myconstraint(result::Vector, x::Vector, grad::Matrix)
   checkNotNaN(x)
   if length(grad) > 0
-      grad[:] = 0;
+      grad[:,:] = 0;
   end
 
   BrickModel.fromVector!(trajectory, x)
@@ -106,7 +106,7 @@ function myconstraint(result::Vector, x::Vector, grad::Vector)
   v = vec(BrickModel.toVector(e));
   for i in 1:length(result)
     result[i] = v[i]
-    end
+  end
 
   #println("finished constraint")
   #x[1]
@@ -123,9 +123,8 @@ NLopt.min_objective!(opt, myfunc)
 
 
 tolerances = ones(length(BrickModel.toVector(trajectory))) * 1e-4
-isa(tolerances, AbstractVector)
 
-NLopt.inequality_constraint!(opt, (x, g) -> myconstraint(x, g), tolerances)
+NLopt.inequality_constraint!(opt, (r, x, g) -> myconstraint(r, x, g), tolerances)
 
 
 @time (minf,minx,ret) = NLopt.optimize(opt, vec(BrickModel.toVector(trajectory)))
