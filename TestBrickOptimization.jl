@@ -57,8 +57,8 @@ function myconstraint(result::Vector, x::Vector, grad::Matrix)
   end
 
   BrickModel.fromVector!(stateTraj, x)
-  errorTrajectory = BrickModel.calculateSimulatedTrajectoryError(stateTraj, inputTraj, dt)
-  #BrickModel.calculateSimulatedTrajectoryError!(stateTraj, inputTraj, dt, errorTrajectory)
+  #errorTrajectory = BrickModel.calculateSimulatedTrajectoryError(stateTraj, inputTraj, dt)
+  BrickModel.calculateSimulatedTrajectoryError!(stateTraj, inputTraj, dt, errorTrajectory)
 
   v = vec(BrickModel.toVector(errorTrajectory));
   for i in 1:length(result)
