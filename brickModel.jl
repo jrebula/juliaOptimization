@@ -290,8 +290,6 @@ function integrateStateTrajectory(
 end
 
 
-
-
 function calculateSimulatedTrajectoryError(
     stateTraj::BrickStateTrajectory,
     inputTraj::BrickInputTrajectory,
@@ -307,16 +305,12 @@ function calculateSimulatedTrajectoryError!(
     dt::Real,
     errorTraj::BrickStateTrajectory)
   integratedStates = integrateStateTrajectory(stateTraj, inputTraj, dt);
-  errorTrajectory = integratedStates - stateTraj
-  errorTrajectory
+  for i = 1:length(stateTraj.states), fieldName = [:x, :y, :xDot, :yDot]
+    setfield!(errorTraj.states[i],
+              fieldName,
+              getfield(integratedStates.states[i], fieldName) -
+                getfield(stateTraj.states[i], fieldName))
+  end
 end
-
-
-
-
-
-
-
-
 
 end
