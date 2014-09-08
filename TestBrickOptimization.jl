@@ -21,12 +21,7 @@ errorTrajectory = deepcopy(stateTraj);
 
 inputTraj.inputs[1].fX = 10;
 
-
-
 numberOfFunctionEvaluations = 0
-
-
-inputTraj.inputs[1].fX = 1
 
 function checkNotNaN(x)
   if any(isnan(x))
@@ -90,7 +85,7 @@ end
 
 BrickModel.fromVector!(stateTraj, minx)
 
-println("got $minf at $minx after $numberOfFunctionEvaluations iterations (returned $ret)")
+println("got $minf at after $numberOfFunctionEvaluations iterations (returned $ret)")
 
 show(stateTraj)
 
