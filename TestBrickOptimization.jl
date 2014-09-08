@@ -1,4 +1,5 @@
 
+# might have to run these two lines if you haven't installed NLOpt yet:
 #Pkg.add("NLopt")
 #Pkg.update()
 
@@ -11,7 +12,7 @@ include("BrickModel.jl")
 #include("C:\\Users\\john\\.julia\\NLopt\\src\\NLopt.jl")
 #"C:\Users\john\.julia\NLopt\\src"
 
-numStates = 3;
+numStates = 10;
 dt = 0.01;
 
 stateTraj = BrickModel.BrickStateTrajectory(numStates);
@@ -19,16 +20,16 @@ inputTraj = BrickModel.BrickInputTrajectory(numStates);
 
 inputTraj.inputs[1].fX = 10;
 
-show(stateTraj)
-show(inputTraj)
+#show(stateTraj)
+#show(inputTraj)
 
 stateTraj = BrickModel.integrateStateTrajectory(stateTraj, inputTraj, dt)
 
 
 e = BrickModel.calculateSimulatedTrajectoryError(stateTraj, inputTraj, dt)
 
-show(stateTraj)
-show(e)
+#show(stateTraj)
+#show(e)
 
 A = rand(8,8)
 B = rand(8,1)
@@ -55,8 +56,8 @@ BrickModel.simulate!(stateTraj, inputTraj, dt,
 
 v = BrickModel.toVector(stateTraj)
 
-show(stateTraj)
-show(v)
+#show(stateTraj)
+#show(v)
 
 BrickModel.fromVector!(stateTraj, v)
 
@@ -71,6 +72,7 @@ numberOfFunctionEvaluations = 0
 trajectory = BrickModel.BrickStateTrajectory(numStates) + 4
 inputTraj = BrickModel.BrickInputTrajectory(numStates)
 
+inputTraj.inputs[1].fX = 1
 
 function checkNotNaN(x)
   if any(isnan(x))
@@ -89,7 +91,7 @@ function myfunc(x::Vector, grad::Vector)
   numberOfFunctionEvaluations::Int += 1
   #println("f_$numberOfFunctionEvaluations($x)")
 
-  val = norm(x)
+  val = norm(x[1:4])
   #println("finished value function $(val)")
   val
 end
@@ -124,17 +126,18 @@ NLopt.min_objective!(opt, myfunc)
 
 tolerances = ones(length(BrickModel.toVector(trajectory))) * 1e-4
 
-NLopt.inequality_constraint!(opt, (r, x, g) -> myconstraint(r, x, g), tolerances)
+NLopt.equality_constraint!(opt, (r, x, g) -> myconstraint(r, x, g), tolerances)
 
 
-@time for i in 1:1000
+@time for i in 1:10
   (minf,minx,ret) = NLopt.optimize(opt, vec(BrickModel.toVector(trajectory)))
 end
 
-
+BrickModel.fromVector!(trajectory, minx)
 
 println("got $minf at $minx after $numberOfFunctionEvaluations iterations (returned $ret)")
 
+show(trajectory)
 
 
 
