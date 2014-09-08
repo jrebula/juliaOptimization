@@ -127,7 +127,9 @@ tolerances = ones(length(BrickModel.toVector(trajectory))) * 1e-4
 NLopt.inequality_constraint!(opt, (r, x, g) -> myconstraint(r, x, g), tolerances)
 
 
-@time (minf,minx,ret) = NLopt.optimize(opt, vec(BrickModel.toVector(trajectory)))
+@time for i in 1:1000
+  (minf,minx,ret) = NLopt.optimize(opt, vec(BrickModel.toVector(trajectory)))
+end
 
 
 
