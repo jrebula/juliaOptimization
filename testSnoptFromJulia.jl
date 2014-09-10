@@ -1,24 +1,7 @@
 
 
-
-
-#run(`sudo apt-get install xorg-dev libglu1-mesa-dev`)
-
-#Pkg.clone("https://github.com/glfw/glfw.git")
-
-cd(homedir() * "/.julia/v0.4/glfw/")
-
-
-
-
-Pkg.clone("https://github.com/JuliaGL/ModernGL.jl.git")
-Pkg.clone("https://github.com/SimonDanisch/GLWindow.jl.git")
-Pkg.clone("https://github.com/SimonDanisch/GLAbstraction.jl.git")
-Pkg.clone("https://github.com/SimonDanisch/GLText.jl.git")
-Pkg.clone("https://github.com/SimonDanisch/GLPlot.jl.git")
-
-
-#run(`echo \$LD_LIBRARY_PATH`)
+#ENV["LD_LIBRARY_PATH"] = ENV["LD_LIBRARY_PATH"] * ":" * homedir() * "/workspace/snopt_cpp/lib"
+show(ENV["LD_LIBRARY_PATH"])
 
 #include "snopt.h"
 #include <math.h>
@@ -39,32 +22,21 @@ A = 0;
 gFac = 0;
 
 
-#=
-const *a_t   = NULL;
-const *b_t   = NULL;
+#= this is an example of how you can call c from julia... this works
+function mycompare{T}(a_::Ptr{T}, b_::Ptr{T})
+    a = unsafe_load(a_)
+    b = unsafe_load(b_)
+    return a < b ? cint(-1) : a > b ? cint(+1) : cint(0)
+end
+cint(n) = convert(Cint, n)
+const mycompare_C = cfunction(mycompare, Cint, (Ptr{Cdouble}, Ptr{Cdouble}))
 
-const *c_bl  = NULL;
-const *v_bl  = NULL;
 
-const *c_bu  = NULL;
-const *v_bu  = NULL;
-
-const *v_xs  = NULL;
-const *c_xs  = NULL;
-
-const *pi    = NULL;
-const *Jcol  = NULL;
-
-cint *v_hs  = NULL;
-cint *c_hs  = NULL;
-
-cint *indJ  = NULL;
-cint *locJ  = NULL;
-
-cint nT;
+A = [1.3, -2.7, 4.4, 3.1]
+ccall(:qsort, Void, (Ptr{Cdouble}, Csize_t, Csize_t, Ptr{Void}),
+      A, length(A), sizeof(eltype(A)), mycompare_C)
+show(A)
 =#
-
-
 
 
 
@@ -86,21 +58,6 @@ cint nT;
 #const gsl_brent = unsafe_load(cglobal((:gsl_min_fminimizer_brent,:libgsl), Ptr{Void}))
 
 
-#=
-function mycompare{T}(a_::Ptr{T}, b_::Ptr{T})
-    a = unsafe_load(a_)
-    b = unsafe_load(b_)
-    return a < b ? cint(-1) : a > b ? cint(+1) : cint(0)
-end
-cint(n) = convert(Cint, n)
-const mycompare_C = cfunction(mycompare, Cint, (Ptr{Cdouble}, Ptr{Cdouble}))
-
-
-A = [1.3, -2.7, 4.4, 3.1]
-ccall(:qsort, Void, (Ptr{Cdouble}, Csize_t, Csize_t, Ptr{Void}),
-      A, length(A), sizeof(eltype(A)), mycompare_C)
-show(A)
-=#
 
 
 if (length(Base.find_library(["libsnopt7"])) == 0)
@@ -111,7 +68,7 @@ end
 #f = dlsym(snoptLib, :snProblem)
 
 
-#=
+#= the declarations from c:
  cint    i;
   char   *error_msg;
   cint    status;
@@ -126,10 +83,10 @@ end
 =#
 
 
+# this is how the c declares the snopt problem:
+#snProblem manne; 
 
-#snProblem manne; Ptr{Void}
-
-manneVec = Any; #Ptr{Void}[1]; #snProblem
+manneVec = Ptr{Void}[1];
 manne = manneVec[1];
 
 nT = 10;
@@ -172,8 +129,7 @@ ccall((:sninit_, "libsnopt7"), Cint, (Ptr{Void},
 
 
 
-#=
-asdf
+#= here's the c call the above is trying to reproduce
 
 
 status =
@@ -189,6 +145,33 @@ status =
       linear_objective_row,
       "manne.out",
       "stdout" );
+
+=#
+
+some more variable declarations, these happen at the top of the c file:
+const *a_t   = NULL;
+const *b_t   = NULL;
+
+const *c_bl  = NULL;
+const *v_bl  = NULL;
+
+const *c_bu  = NULL;
+const *v_bu  = NULL;
+
+const *v_xs  = NULL;
+const *c_xs  = NULL;
+
+const *pi    = NULL;
+const *Jcol  = NULL;
+
+cint *v_hs  = NULL;
+cint *c_hs  = NULL;
+
+cint *indJ  = NULL;
+cint *locJ  = NULL;
+
+cint nT;
+
 
   if ( status != SN_OK ) {
     snGetError( &manne , &error_msg );
