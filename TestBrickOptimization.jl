@@ -83,6 +83,7 @@ tolerances = ones(length(BrickModel.toVector(stateTraj))) * 1e-4
 
 NLopt.equality_constraint!(opt, (r, x, g) -> myconstraint(r, x, g), tolerances)
 
+minx = minf = ret = 0
 
 @time for i in 1:10
   (minf,minx,ret) = NLopt.optimize(opt, vec(BrickModel.toVector(stateTraj)))
@@ -133,5 +134,3 @@ if (false)
 
   BrickModel.fromVector!(stateTraj, v)
 end
-
-
