@@ -1,110 +1,39 @@
 
 
-include("snopt.jl")
-nT = 10;
-scale = nT / 10.0;
-numVariables = 3*nT;
-numConstraints = 2*nT;
-numNonzeros = 6*nT - 1;
-numJacobianNonzeros = nT;
-numNonlinearConstraints = nT;
-numNonlinearJacobianVariables = nT;
-numNonlinearObjectiveVariables = 2*nT;
-linearObjectiveRow = 0;
-snopt.initialize(numVariables,
-                 numConstraints,
-                 numNonzeros,
-                 numJacobianNonzeros,
-                 numNonlinearConstraints,
-                 numNonlinearObjectiveVariables,
-                 numNonlinearJacobianVariables,
-                 linearObjectiveRow,
-                 "juliaSnotTest.out")
+#put all the snopt libs somewhere ld can find them: /usr/lib or whatever
+# gcc -fpic -Wall -c snset.c
+# gcc -fpic -Wall -c snopt.c
+# gcc -fpic -Wall -c snerror.c 
+# gfortran -fpic -Wall -c sn_open.f
+#gcc -shared -o libcsnopt.so snopt.o snerror.o snset.o sn_open.o -lsnopt7 -lsnblas -lsnprint7 -lgfortran
 
 
-show(snopt)
+module snopt
 
 
 
 
-
-
-
-
-
-
-
-#ENV["LD_LIBRARY_PATH"] = ENV["LD_LIBRARY_PATH"] * ":" * homedir() * "/workspace/snopt_cpp/lib"
-show(ENV["LD_LIBRARY_PATH"])
-
-#include "snopt.h"
-#include <math.h>
-#include <stdlib.h>
-#include <stdio.h>
-
-
-const inf = 1e20;
-const growth = 0.03;
-const Beta = 0.95;
-const xK_0 = 3.00;
-const xC_0 = 0.95;
-const xI_0 = 0.05;
-const B = 0.25;
-
-scale = 0;
-A = 0;
-gFac = 0;
-
-
-#= this is an example of how you can call c from julia... this works
-function mycompare{T}(a_::Ptr{T}, b_::Ptr{T})
-    a = unsafe_load(a_)
-    b = unsafe_load(b_)
-    return a < b ? cint(-1) : a > b ? cint(+1) : cint(0)
-end
-cint(n) = convert(Cint, n)
-const mycompare_C = cfunction(mycompare, Cint, (Ptr{Cdouble}, Ptr{Cdouble}))
-
-
-A = [1.3, -2.7, 4.4, 3.1]
-ccall(:qsort, Void, (Ptr{Cdouble}, Csize_t, Csize_t, Ptr{Void}),
-      A, length(A), sizeof(eltype(A)), mycompare_C)
-show(A)
-=#
-
-
-
-
-#function main()
-
-#  cint    i;
-#  char   *error_msg;
-#  cint    status;
-#  cint    variables;
-#  cint    constraints;
-#  cint    linear_objective_row;
-#  cint    nonzeros;
-#  cint    jacobian_nonzeros;
-#  cint    nonlinear_constraints;
-# cint    nonlinear_jacobian_variables;
-# cint    nonlinear_objective_variables;
-
+# how to load a constant:
 #const gsl_brent = unsafe_load(cglobal((:gsl_min_fminimizer_brent,:libgsl), Ptr{Void}))
 
 
-manneReference = c_malloc(10000)
-errorMessage = Ptr{Uint8}
-
-
-if (true)
-
-    #outputFilename = "manne.out"
-    #typeof(outputFilename)
-    #argv = [ "a.out", "arg1", "arg2" ]
+function initialize(numVariables::Int,
+                    numConstraints::Int,
+                    numNonzeros::Int,
+                    numJacobianNonzeros::Int,
+                    numNonlinearConstraints::Int,
+                    numNonlinearObjectiveVariables::Int,
+                    numNonlinearJacobianVariables::Int,
+                    linearObjectiveRow::Int,
+                    outputFileName::String,
+                    outputStream::String="stdout")
     
+    if (length(Base.find_library(["libcsnopt"])) == 0)
+        error("make sure libcsnopt.so is somewhere on LD_LIBRARY_PATH (you could put it in /usr/lib if you're root/lazy)!")
+    end
     
-    
-    #libcsnopt.so 
+    manneReference = c_malloc(10000)
+    errorMessage = Ptr{Uint8}
     
     status = ccall((:snInit, "libcsnopt"), Cint, (Ptr{Void},
                                                   Cint,
@@ -128,14 +57,14 @@ if (true)
                    linear_objective_row,
                    "manne.out",
                    "stdout")
-
-
+    
+    
     #const snoptOK = unsafe_load(cglobal((:SN_OK, "libcsnopt"), Ptr{Void}))
     snoptOK = 1;
-
+    
     
     if ( status != snoptOK )
-
+        
         ccall((:snGetError, "libcsnopt"), Void, (Ptr{Void}, Ptr{Uint8}))
         
         snGetError( &manne , &error_msg );
@@ -147,20 +76,12 @@ if (true)
         #exit(EXIT_FAILURE);
     end
     
-    
-    #jrebula@titian$ gcc -shared -o libcsnopt.so snopt.o snerror.o -lsnopt7 -lsnblas -lsnprint7
-    
-    
-    
-    #put all the snopt libs somewhere ld can find them: /usr/lib or whatever
-    # gcc -fpic -Wall -c snset.c
-    # gcc -fpic -Wall -c snopt.c
-    # gcc -fpic -Wall -c snerror.c 
-    # gfortran -fpic -Wall -c sn_open.f
-    #gcc -shared -o libcsnopt.so snopt.o snerror.o snset.o sn_open.o -lsnopt7 -lsnblas -lsnprint7 -lgfortran
-    
-    
 end
+
+
+
+end
+
 
 #= here's the c call the above is trying to reproduce
 
@@ -543,6 +464,7 @@ function manneUserfun(
   *fObj = f;
 end
 =#
+
 
 
 
