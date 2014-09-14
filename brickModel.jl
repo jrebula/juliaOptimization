@@ -2,6 +2,7 @@
 module BrickModel
 
 import Base.show
+import Base.convert
 
 export getindex
 

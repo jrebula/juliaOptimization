@@ -5,32 +5,48 @@
 #Pkg.add("NLopt")
 #Pkg.update()
 
-module BrickTrajectortyOptimization
 
 using Base.Test
 using NLopt
-
-#include("BrickModel.jl")
 using BrickModel
+using Base.Test
+
 
 #include("C:\\Users\\john\\.julia\\NLopt\\src\\NLopt.jl")
 #"C:\Users\john\.julia\NLopt\\src"
 
-numStates = 10;
+
+num_states = 10;
 dt = 0.01;
 
-stateTraj = BrickModel.BrickStateTrajectory(numStates) + 4;
-inputTraj = BrickModel.BrickInputTrajectory(numStates);
-errorTrajectory = deepcopy(stateTraj);
 
-inputTraj.inputs[1].fX = 10;
+custom_test_handler(r::Test.Success) = nothing;
+custom_test_handler(r::Test.Failure) = error("test failed: $(r.expr)");
+custom_test_handler(r::Test.Error)   = rethrow(r);
 
-
-
-
-
-BrickTrajectoryOptimization.performAnOptimization()
-
-
-##################
+Test.with_handler(custom_test_handler) do
+    include("BrickTrajectoryOptimization.jl")
+    #
+    state_traj = BrickModel.BrickStateTrajectory(num_states) + 4;
+    input_traj = BrickModel.BrickInputTrajectory(num_states);
+    input_traj.inputs[1].fX = 10;
+    initialState = BrickTrajectoryOptimization.OptimizationState(state_traj, input_traj, dt)
+    # 
+    state_mask_describing_changable_states = 1 + (initialState * 0)
+    stateMaskDescribingChangableStates.inputTraj = state_mask_describing_changable_states.inputTraj * 0;
+    state_mask_describing_changable_states.dt = 0
+end
+    
+    @test opt = BrickTrajectoryOptimization.Optimization(state_mask_describing_changable_states)
+    
+    (optimal_state, optimal_cost, return_flag) =
+        BrickTrajectoryOptimization.optimize(opt, initial_state);
+    
+    
+    
+    BrickTrajectoryOptimization.
+    addEqualityConstraint(opt,
+                          (returnVal, state, gradient) ->
+                          )
+    
 end
