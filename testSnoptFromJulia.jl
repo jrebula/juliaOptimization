@@ -1,6 +1,10 @@
 
+# gah, have to manually install glfw: http://www.glfw.org/download.html
+#Pkg.add("SymPy")
+#using SymPy
 
-include("snopt.jl")
+
+include("Snopt.jl")
 nT = 10;
 scale = nT / 10.0;
 numVariables = 3*nT;
@@ -11,7 +15,7 @@ numNonlinearConstraints = nT;
 numNonlinearJacobianVariables = nT;
 numNonlinearObjectiveVariables = 2*nT;
 linearObjectiveRow = 0;
-snopt.initialize(numVariables,
+s = Snopt.SnoptProblem(numVariables,
                  numConstraints,
                  numNonzeros,
                  numJacobianNonzeros,
@@ -20,9 +24,162 @@ snopt.initialize(numVariables,
                  numNonlinearJacobianVariables,
                  linearObjectiveRow,
                  "juliaSnotTest.out")
+numVariables = Snopt.getNumVariables(s)
+numConstraints = Snopt.getNumConstraints(s)
+const inf = 1e20;
+const growth = 0.03;
+const Beta = 0.95;
+const xK_0 = 3.00;
+const xC_0 = 0.95;
+const xI_0 = 0.05;
+const B = 0.25;
+scale = 0;
+A = 0;
+gFac = 0;
+dummy = 0.1
 
 
-show(snopt)
+#function setupManneExampleProblem(snoptProblem::Ptr{Void})
+#{
+#  cint     i, j;
+#  cint    *p_locJ;
+#  double   infty = 1e20, dummy = 0.1;
+
+A = ( xC_0 + xI_0 ) / (xK_0^B);
+gFac = (1.0 + growth)^(1-B);
+
+b_t = zeros(nT); #(double*)malloc( sizeof(double) * nT )
+a_t = zeros(nT);
+a_t[1] = A * gFac;
+b_t[1] = Beta;
+for i = 2:nT
+    a_t[i] = a_t[i-1] * gFac;
+    b_t[i] = b_t[i-1] * Beta;
+end
+b_t[nT] /= ( 1.0 - Beta );
+
+
+v_xs = Snopt.getVariablesArray(s, numVariables);
+v_hs = Snopt.getVariableBasisEligibilitiesArray(s, numVariables);
+v_bu = Snopt.getVariableUpperBoundsArray(s, numVariables);
+v_bl = Snopt.getVariableLowerBoundsArray(s, numVariables);
+
+c_xs = Snopt.getConstraintsArray(s, numConstraints);
+c_hs = Snopt.getConstraintBasisEligibilitiesArray(s, numConstraints);
+c_bu = Snopt.getConstraintUpperBoundsArray(s, numConstraints);
+c_bl = Snopt.getConstraintLowerBoundsArray(s, numConstraints)
+
+pi = Snopt.getMultipliersArray(s, numConstraints);
+
+Jcol = Snopt.getNonzeroValuesArray(s, 3*nT);
+indJ = Snopt.getNonzeroRowIndicesArray(s, 3*nT);
+locJ = Snopt.getNonzeroColumnPointersArray(s, 3*nT);
+
+infty = inf + 1e15
+
+
+for i = 1:nT
+    v_bl[ i           ] = 3.05;
+    v_bu[ i           ] = infty;
+    #    
+    v_bl[ i + nT      ] = xC_0;
+    v_bu[ i + nT      ] = infty;
+    #
+    v_bl[ i + nT + nT ] = xI_0;
+    v_bu[ i + nT + nT ] = infty;
+    #
+    v_xs[ i           ] = xK_0 + i / 10.0;
+    v_xs[ i + nT      ] = xC_0;
+    v_xs[ i + nT + nT ] = xI_0;
+    #
+    v_hs[ i           ] = Snopt.SN_BASIS_COLD_ELIGIBLE_0;
+    v_hs[ i + nT      ] = Snopt.SN_BASIS_COLD_ELIGIBLE_0;
+    v_hs[ i + nT + nT ] = Snopt.SN_BASIS_COLD_ELIGIBLE_0;
+    #
+    # constraints
+    #
+    c_bl[ i      ] = 0.0;
+    c_bu[ i      ] = infty;
+    #
+    c_bl[ i + nT ] = -infty;
+    c_bu[ i + nT ] = 0.0;
+    #
+    c_xs[ i      ] = Snopt.SN_BASIS_COLD_ELIGIBLE_0;
+    c_xs[ i + nT ] = Snopt.SN_BASIS_COLD_ELIGIBLE_0;
+    #
+    pi[ i      ] = -1.0;
+    pi[ i + nT ] =  1.0;
+end
+
+
+#/* exceptional bounds and initial values */
+
+v_bl[ 0 ] = 3.05;
+v_bu[ 0 ] = 3.05;
+
+v_bl[ 3 * nT - 3 ] = xI_0;
+v_bu[ 3 * nT - 3 ] = 0.112 * scale;
+
+v_bl[ 3 * nT - 2 ] = xI_0;
+v_bu[ 3 * nT - 2 ] = 0.114 * scale;
+
+v_bl[ 3 * nT - 1 ] = xI_0;
+v_bu[ 3 * nT - 1 ] = 0.116 * scale;
+
+v_xs[ nT - 1 ] = 1000.0;
+v_hs[ nT - 1 ] = Snopt.SN_BASIS_IGNORE;
+
+c_bl[ nT - 1 ] =  0.0;
+c_bu[ nT - 1 ] = 10.0;
+
+c_bl[ nT + nT - 1 ] = -20.0;
+c_bu[ nT + nT - 1 ] =   0.0;
+
+# /* nonzeros */
+
+
+#/* column 1 */
+p_locJ = locJ;
+p_locJ[0] = 1;
+j = 0 ;   Jcol[j] = dummy;   indJ[j] = 1;
+j = 1 ;   Jcol[j] =  -1.0;   indJ[j] = 1 + nT;
+
+p_locJ[1] = p_locJ[0] + 2;   p_locJ++;
+
+#/* columns 2 to nT-1 */
+for i = 1:(nT - 2)
+    j++;   Jcol[j] = dummy;   indJ[j] = i + 1;
+    j++;   Jcol[j] =   1.0;   indJ[j] = i +     nT;
+    j++;   Jcol[j] =  -1.0;   indJ[j] = i + 1 + nT;
+    p_locJ[1] = p_locJ[0] + 3;  p_locJ++;
+end
+
+# /* column nT */
+j++;   Jcol[j] =  dummy;   indJ[j] = nT;
+j++;   Jcol[j] =    1.0;   indJ[j] = 2 * nT - 1;
+j++;   Jcol[j] = growth;   indJ[j] = 2 * nT;
+
+p_locJ[1] = p_locJ[0] + 3;  p_locJ++;
+
+#/* columns (nT+1) to (2*nT) */
+for i = 0:(nT-1)               
+    j++;   Jcol[j] = -1.0;   indJ[j] = i + 1;
+    p_locJ[1] = p_locJ[0] + 1;  p_locJ++;
+end
+
+#  /* columns (2*nT+1) to (3*nT) */
+for i = 0:(nT-1)
+    j++;   Jcol[j] = -1.0;   indJ[j] = i + 1;
+    j++;   Jcol[j] = -1.0;   indJ[j] = i + 1 + nT;
+    p_locJ[1] = p_locJ[0] + 2;  p_locJ++;
+end
+
+
+
+
+
+
+show(s)
 
 
 
@@ -43,17 +200,6 @@ show(ENV["LD_LIBRARY_PATH"])
 #include <stdio.h>
 
 
-const inf = 1e20;
-const growth = 0.03;
-const Beta = 0.95;
-const xK_0 = 3.00;
-const xC_0 = 0.95;
-const xI_0 = 0.05;
-const B = 0.25;
-
-scale = 0;
-A = 0;
-gFac = 0;
 
 
 #= this is an example of how you can call c from julia... this works
@@ -92,11 +238,11 @@ show(A)
 #const gsl_brent = unsafe_load(cglobal((:gsl_min_fminimizer_brent,:libgsl), Ptr{Void}))
 
 
-manneReference = c_malloc(10000)
-errorMessage = Ptr{Uint8}
+#manneReference = c_malloc(10000)
+#errorMessage = Ptr{Uint8}
 
 
-if (true)
+if (false)
 
     #outputFilename = "manne.out"
     #typeof(outputFilename)
@@ -135,10 +281,9 @@ if (true)
 
     
     if ( status != snoptOK )
-
-        ccall((:snGetError, "libcsnopt"), Void, (Ptr{Void}, Ptr{Uint8}))
+        #ccall((:snGetError, "libcsnopt"), Void, (Ptr{Void}, Ptr{Uint8}))
         
-        snGetError( &manne , &error_msg );
+        #snGetError( &manne , &error_msg );
         #printf( "%s: error occurred (%d).\n%s", argv[0] , status, error_msg );
         
         #snDelete( &manne );
@@ -149,8 +294,6 @@ if (true)
     
     
     #jrebula@titian$ gcc -shared -o libcsnopt.so snopt.o snerror.o -lsnopt7 -lsnblas -lsnprint7
-    
-    
     
     #put all the snopt libs somewhere ld can find them: /usr/lib or whatever
     # gcc -fpic -Wall -c snset.c
@@ -219,7 +362,7 @@ cint nT;
 
   manne_init( &manne );
 
-  snSetProblemName        ( &manne, "   Manne            "       );
+  snSetProblemName        ( &manne, "  s           "       );
   snSetOptionString       ( &manne, "Maximize            "       );
   snSetOptionInteger      ( &manne, "Major iterations    ",  400 );
   snSetOptionInteger      ( &manne, "Minor iterations    ", 8000 );
@@ -338,7 +481,7 @@ end
 
 
 
-#void manne_init( snProblem* manne )
+#void manne_init( snProblem*s)
 #{
 #  cint     i, j;
 #  cint    *p_locJ;
@@ -360,22 +503,22 @@ a_t = (double*)malloc( sizeof(double) * nT );
 
   b_t[nT-1] /= ( 1.0 - Beta );
 
-  v_xs = snGetVariables  ( manne );
-  v_hs = snGetVariableBasisEligibilities  ( manne );
+  v_xs = snGetVariables  (s);
+  v_hs = snGetVariableBasisEligibilities  (s);
 
-  c_xs = snGetConstraints( manne );
-  c_hs = snGetConstraintBasisEligibilities( manne );
+  c_xs = snGetConstraints(s);
+  c_hs = snGetConstraintBasisEligibilities(s);
 
-  v_bu = snGetVariableUpperBounds  ( manne );
-  v_bl = snGetVariableLowerBounds  ( manne );
+  v_bu = snGetVariableUpperBounds  (s);
+  v_bl = snGetVariableLowerBounds  (s);
 
-  c_bu = snGetConstraintUpperBounds( manne );
-  c_bl = snGetConstraintLowerBounds( manne );
-  pi   = snGetMultipliers          ( manne );
+  c_bu = snGetConstraintUpperBounds(s);
+  c_bl = snGetConstraintLowerBounds(s);
+  pi   = snGetMultipliers          (s);
 
-  Jcol = snGetNonzeroValues        ( manne );
-  indJ = snGetNonzeroRowIndices    ( manne );
-  locJ = snGetNonzeroColumnPointers( manne );
+  Jcol = snGetNonzeroValues        (s);
+  indJ = snGetNonzeroRowIndices    (s);
+  locJ = snGetNonzeroColumnPointers(s);
 
   for ( i = 0 ; i < nT ; i++ ) {
 
