@@ -130,8 +130,6 @@ convert(::Type{BrickStateTrajectory}, x::Number, numElements::Int) = convert(Bri
 convert(::Type{BrickStateTrajectory}, x::BrickState, numElements::Int) = BrickStateTrajectory(numElements, x)
 
 
-
-
 macro forField(fieldName, a, expressions)
   quote
     for $fieldName in names(a)
