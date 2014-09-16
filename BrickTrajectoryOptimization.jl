@@ -49,7 +49,7 @@ for op = (:+, :*, :-, :/)
     @eval ($op)(a::OptimizationState, b::OptimizationState) = begin
         c = OptimizationState(($op)(a.state_traj, b.state_traj),
                               ($op)(a.input_traj, b.input_traj),
-                              ($op)(a.dt, b.dt))      
+                              ($op)(a.dt, b.dt))
         c
     end
     @eval ($op)(a::OptimizationState, b::Number) = ($op)(a, convert(OptimizationState, b, length(a.state_traj.states)))
@@ -59,11 +59,7 @@ end
 convert(::Type{OptimizationState}, x::Number, num_elements::Int) =
     OptimizationState(convert(BrickModel.BrickStateTrajectory, x, num_elements),
                          convert(BrickModel.BrickInputTrajectory, x, num_elements))
-                         
 
-
-
-asdf
 a = convert(OptimizationState, 0.1, 1)
 
 
@@ -80,7 +76,7 @@ function dynamics_constraint_function(stateTraj::BrickModel.BrickStateTrajectory
         gradient[:,:] = 0;
     end
     xStep = 0.1;
-    
+
     BrickModel.fromVector!(stateTraj, x)
     BrickModel.calculateSimulatedTrajectoryError!(stateTraj, inputTraj, dt, errorTrajectory)
 
@@ -90,14 +86,14 @@ function dynamics_constraint_function(stateTraj::BrickModel.BrickStateTrajectory
         result[i] = v[i];
     end
     #i++;
-    
+
     # show(typeof(BrickModel.toVector(stateTraj.states[end] - stateTraj.states[1])))
     # show(typeof([0 0 0 0.0]))
-    
+
     #BrickModel.toVector(stateTraj.states[end] - stateTraj.states[1]) - [0 0 0 0.0]
-    
+
     #result[i + (1:4)] = vec(BrickModel.toVector(stateTraj.states[end] - stateTraj.states[1])) - [xStep 0 0 0.0]
-    
+
     #println("finished constraint")
     #x[1]
 end
@@ -108,7 +104,7 @@ type Optimization
 
     stateMaskDescribingChangableStates::OptimizationState
     vectorMaskDescribingChangableStates::Vector{Bool}
-    
+
 end
 
 
