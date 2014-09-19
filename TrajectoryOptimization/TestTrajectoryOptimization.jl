@@ -2,7 +2,7 @@
 
 module TestTrajectoryOptimization
 
-include("TrajectoryOptimization.jl");
+using TrajectoryOptimization
 
 type TestSystemState <: TrajectoryOptimization.SystemState
   x::Float64
