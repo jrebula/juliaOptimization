@@ -8,7 +8,7 @@ using Base.Test
 #export getindex
 
 
-defineFourFunctionMathForTypeWithNumericFields = (typeName) ->
+defineFourFunctionMathForTypeWithNumericFields = (typeName) -> begin
   for op = (:+, :*, :-, :/)
     @eval ($op)(a::$typeName, b::$typeName) = begin
       c = deepcopy(a);
@@ -20,6 +20,15 @@ defineFourFunctionMathForTypeWithNumericFields = (typeName) ->
     @eval ($op)(a::$typeName, b::Number) = ($op)(a, convert($typeName, b))
     @eval ($op)(a::Number, b::$typeName) = ($op)(convert($typeName, a), b)
   end
+end
+
+#  @eval $typeName(a::Number) = begin
+#    c = $typeName();
+#    for field in names(a)
+#      setfield!(c, field, a)
+#    end
+#    c
+#  end
 
 
 
@@ -111,14 +120,6 @@ end
 function fromVector!(traj::BrickStateTrajectory, vec)
   inds = 1:4
   for i in 1:length(traj.states)
-    #show(sub(vec, 1, inds + 4*(i-1)))
-    #show(typeof(sub(vec, 1, inds + 4*(i-1))))
-
-    #show(vec[inds])
-    #show(typeof(vec[inds]))
-
-    #    fromVector!(traj.states[i], sub(vec, 1, inds + 4*(i-1)))
-
     fromVector!(traj.states[i], vec[inds + 4*(i-1)])
   end
   traj
@@ -164,27 +165,23 @@ end
 
 BrickInput(n::Number) = BrickInput(n, n);
 BrickInput() = BrickInput(0.0);
+Base.convert(::Type{BrickInput}, x::Number) = BrickInput(x)
 
 defineFourFunctionMathForTypeWithNumericFields(:BrickInput)
 
-#=
-for op = (:+, :*, :-, :/)
-  @eval ($op)(a::BrickInput, b::BrickInput) = begin
-    c = deepcopy(a);
-    for field in names(a)
-      setfield!(c, field, ($op)(getfield(a, field), getfield(b, field)))
-    end
-    c
-  end
-
-  @eval ($op)(a::BrickInput, b::Number) = ($op)(a, convert(BrickInput, b))
-  @eval ($op)(a::Number, b::BrickInput) = ($op)(convert(BrickInput, a), b)
+function toVector(input::BrickInput)
+  [input.fX input.fY]
 end
-=#
+
+function fromVector!(input::BrickInput, vec::Array)
+  (input.fX, input.fY) = vec
+end
 
 function show(io::IO, b::BrickInput)
   print(io, "fX = $(b.fX), fY = $(b.fY)")
 end
+
+
 
 
 
@@ -196,33 +193,18 @@ end
 BrickInputTrajectory(numberOfInputs::Int) = BrickInputTrajectory([BrickInput() for i=1:numberOfInputs])
 BrickInputTrajectory() = BrickInputTrajectory(0)
 
-
-
-addFourFunctionMathForArrayedType = (trajType, arrayFieldName, subTypeName) ->
-# TODO perform a check here to make sure the trajType has a default constructor
-for op = (:+, :*, :-, :/)
-  @eval ($op)(a::$trajType, b::$trajType) = $trajType(($op)(a.$arrayFieldName, b.$arrayFieldName))
-
-  @eval ($op)(a::$trajType, b::Number) = ($op)(a, convert($trajType, b, length(a.$arrayFieldName)))
-  @eval ($op)(a::Number, b::$trajType) = ($op)(convert($trajType, a, length(b.$arrayFieldName)), b)
-
-  @eval ($op)(a::$trajType, b::$subTypeName) = ($op)(a, convert($trajType, b, length(a.$arrayFieldName)))
-  @eval ($op)(a::$subTypeName, b::$trajType) = ($op)(convert($trajType, a, length(b.$arrayFieldName)), b)
+BrickInputTrajectory(numberOfInputs::Int, state::BrickInput) = begin
+  ret = BrickInput[]
+  for i = 1:numberOfInputs
+    push!(ret, deepcopy(state))
+  end
+  BrickInputTrajectory(ret)
 end
 
-Base.convert(::Type{$trajType}, x::Number, numElements::Int) = convert($trajType, convert($subTypeName, x), numElements)
-Base.convert(::Type{$trajType}, x::$subTypeName, numElements::Int) = $trajType(numElements, x)
+Base.convert(::Type{BrickInputTrajectory}, x::Number, numElements::Int) = convert(BrickInputTrajectory, convert(BrickInput, x), numElements)
+Base.convert(::Type{BrickInputTrajectory}, x::BrickInput, numElements::Int) = BrickInputTrajectory(numElements, x);
 
 
-
-a = BrickStateTrajectory(10) + 4;
-b = BrickStateTrajectory(10) + 2;
-
-a.states + b.states
-
-show(a)
-
-#=
 for op = (:+, :*, :-, :/)
   @eval ($op)(a::BrickInputTrajectory, b::BrickInputTrajectory) = begin
     c = BrickInputTrajectory(0);
@@ -232,17 +214,35 @@ for op = (:+, :*, :-, :/)
     c
   end
 
-  @eval ($op)(a::BrickInputTrajectory, b::Number) = ($op)(a, convert(BrickInputTrajectory, b, length(a.states)))
-  @eval ($op)(a::Number, b::BrickInputTrajectory) = ($op)(convert(BrickInputTrajectory, a, length(b.states)), b)
+  @eval ($op)(a::BrickInputTrajectory, b::Number) = ($op)(a, convert(BrickInputTrajectory, b, length(a.inputs)))
+  @eval ($op)(a::Number, b::BrickInputTrajectory) = ($op)(convert(BrickInputTrajectory, a, length(b.inputs)), b)
 
-  @eval ($op)(a::BrickInputTrajectory, b::BrickState) = ($op)(a, convert(BrickInputTrajectory, b, length(a.states)))
-  @eval ($op)(a::BrickState, b::BrickInputTrajectory) = ($op)(convert(BrickInputTrajectory, a, length(b.states)), b)
+  @eval ($op)(a::BrickInputTrajectory, b::BrickInput) = ($op)(a, convert(BrickInputTrajectory, b, length(a.inputs)))
+  @eval ($op)(a::BrickInput, b::BrickInputTrajectory) = ($op)(convert(BrickInputTrajectory, a, length(b.inputs)), b)
 end
 
-Base.convert(::Type{BrickInputTrajectory}, x::Number, numElements::Int) = convert(BrickInputTrajectory, convert(BrickState, x), numElements)
-Base.convert(::Type{BrickInputTrajectory}, x::BrickState, numElements::Int) = BrickInputTrajectory(numElements, x)
+Base.convert(::Type{BrickInputTrajectory}, x::Number, numElements::Int) = convert(BrickInputTrajectory, convert(BrickInput, x), numElements)
+Base.convert(::Type{BrickInputTrajectory}, x::BrickInput, numElements::Int) = BrickInputTrajectory(numElements, x)
 
-=#
+
+function toVector(traj::BrickInputTrajectory)
+  ret = zeros(1,0)
+  for i in 1:length(traj.inputs)
+    ret = [ret toVector(traj.inputs[i])]
+  end
+  ret
+end
+
+function fromVector!(traj::BrickInputTrajectory, vec)
+  inds = 1:2
+  for i in 1:length(traj.inputs)
+    fromVector!(traj.inputs[i], vec[inds + 2*(i-1)])
+  end
+  traj
+end
+
+
+
 
 
 
