@@ -1,60 +1,19 @@
 
 
-
 # might have to run these two lines if you haven't installed NLOpt yet:
 #Pkg.add("NLopt")
 #Pkg.update()
 
-module BrickTrajectoryOptimization
+module Optimizer
 
 performSafeChecking = true;
 
 using Base.Test
 using NLopt
 
-import Base.convert
-
-#include("BrickModel.jl")
-using BrickModel
-
-#include("C:\\Users\\john\\.julia\\NLopt\\src\\NLopt.jl")
-#"C:\Users\john\.julia\NLopt\\src"
-
-
-
-
-type OptimizationState
-    state_traj::BrickModel.BrickStateTrajectory
-    input_traj::BrickModel.BrickInputTrajectory
-    dt::Float64
-end
-
-OptimizationState() = OptimizationState(1.0);
-OptimizationState(dt::Float64) = OptimizationState(dt, 0);
-OptimizationState(dt::Float64, numStates::Int) = OptimizationState(BrickModel.BrickStateTrajectory(numStates),
-                                                                   BrickModel.BrickInputTrajectory(numStates),
-                                                                   dt);
-
-function toVector(o::OptimizationState)
-  [BrickModel.toVector(o.state_traj) BrickModel.toVector(o.input_traj) dt]
-end
-
-function fromVector!(o::OptimizationState, vec::Vector)
-  n = length(o.stateTraj)
-  o.state_traj.fromVector!(vec[1:(n * 4)]);
-  o.input_traj.fromVector!(vec[(n * 4) +  (1:2*n)]);
-  o.dt = vec[n*6 + 1];
-
-  [BrickModel.toVector(o.state_traj) BrickModel.toVector(o.input_traj) dt]
-end
-
-
 
 type Optimization
   opt
-
-  stateMaskDescribingChangableStates::OptimizationState
-  vectorMaskDescribingChangableStates::Vector{Bool}
 
   lowerBounds::Vector
   upperBounds::Vector
@@ -73,20 +32,6 @@ function Optimization(stateMaskDescribingChangableStates::OptimizationState)
   return Optimization(opt, stateMaskDescribingChangableStates, vectorMaskDescribingChangableStates,
                       lowerBounds, upperBounds)
 end
-
-
-
-
-
-numStates = 5;
-dt = 0.1;
-stateMask = OptimizationState(BrickModel.BrickStateTrajectory(numStates), BrickModel.BrickInputTrajectory(numStates), dt)
-opt = Optimization(stateMask)
-
-
-
-
-
 
 
 function initializeNLOptProblem(o::Optimization, initialState::OptimizationState)
@@ -120,7 +65,7 @@ end
 
 
 
-function optimize(o::Optimization, initialState::OptimizationState)
+function optimize(o::Optimization, initialState::Trajectory)
 
   if o.opt == None
     initializeNLOptProblem(o, initialState)
@@ -152,21 +97,9 @@ function checkNotNaN(x)
 end
 
 
-function valueFunction(s::OptimizationState, grad::Vector)
-  checkNotNaN(x)
-  if length(grad) > 0
-      grad[:] = 0;
-  end
-  global numberOfFunctionEvaluations
-  numberOfFunctionEvaluations::Int += 1
-
-  val = norm(x[1:4])
-  return val
-end
 
 
-
-function dynamics_constraint_function(stateTraj::OptimizationState,
+function dynamics_constraint_function(stateTraj::Trajectory,
                                       constraints::Vector,
                                       gradient::Matrix)
     if (performSafeChecking)
@@ -187,17 +120,7 @@ function dynamics_constraint_function(stateTraj::OptimizationState,
     for i in 1:length(result)
         result[i] = v[i];
     end
-    #i++;
 
-    # show(typeof(BrickModel.toVector(stateTraj.states[end] - stateTraj.states[1])))
-    # show(typeof([0 0 0 0.0]))
-
-    #BrickModel.toVector(stateTraj.states[end] - stateTraj.states[1]) - [0 0 0 0.0]
-
-    #result[i + (1:4)] = vec(BrickModel.toVector(stateTraj.states[end] - stateTraj.states[1])) - [xStep 0 0 0.0]
-
-    #println("finished constraint")
-    #x[1]
 end
 
 

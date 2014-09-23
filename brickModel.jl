@@ -32,7 +32,6 @@ end
 
 
 
-
 type BrickState
   x::Real
   y::Real
